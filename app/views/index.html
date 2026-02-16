@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Service</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 480px; margin: 2rem auto; padding: 0 1rem; }
+        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        p { color: #555; margin-bottom: 1.5rem; }
+        .persona-list { margin-bottom: 1.5rem; }
+        .persona-item { margin-bottom: 0.5rem; }
+        .persona-item label { display: flex; align-items: center; cursor: pointer; }
+        .persona-item input { margin-right: 0.5rem; }
+        .phone-group { margin-bottom: 1.5rem; }
+        .phone-group label { display: block; font-weight: 500; margin-bottom: 0.25rem; }
+        .phone-group input { width: 100%; padding: 0.5rem; font-size: 1rem; box-sizing: border-box; }
+        button { padding: 0.75rem 1.5rem; font-size: 1rem; cursor: pointer; background: #0066cc; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #0052a3; }
+        button:disabled { background: #aaa; cursor: not-allowed; }
+        .message { margin-top: 1rem; padding: 0.5rem; border-radius: 4px; }
+        .message.success { background: #d4edda; color: #155724; }
+        .message.error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>AI Voice Service</h1>
+    <p>Select a persona and enter a phone number. We'll call you for a real-time voice conversation.</p>
+
+    <h2>Select a persona:</h2>
+    <div class="persona-list" id="personaList">
+        <p>Loading personas...</p>
+    </div>
+
+    <h2>Enter Phone Number:</h2>
+    <div class="phone-group">
+        <label for="phoneNumber">Phone number (E.164, e.g. +1234567890)</label>
+        <input type="text" id="phoneNumber" placeholder="+1234567890">
+    </div>
+
+    <button id="callBtn" onclick="startVoiceAgent()" disabled>Call</button>
+
+    <div id="message"></div>
+
+    <script>
+        async function loadPersonas() {
+            const list = document.getElementById('personaList');
+            const btn = document.getElementById('callBtn');
+            try {
+                const res = await fetch('/api/personas');
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to load personas');
+                const personas = data.personas || [];
+                list.innerHTML = personas.map(p => `
+                    <div class="persona-item">
+                        <label>
+                            <input type="radio" name="persona" value="${escapeHtml(p.id)}" ${p.id === 'vet_care_assistant' ? 'checked' : ''}>
+                            ${escapeHtml(p.display_name)}
+                        </label>
+                    </div>
+                `).join('');
+                btn.disabled = false;
+            } catch (err) {
+                list.innerHTML = '<p class="message error">Failed to load personas. Refresh the page.</p>';
+            }
+        }
+
+        function escapeHtml(s) {
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        function showMessage(text, isError = false) {
+            const el = document.getElementById('message');
+            el.textContent = text;
+            el.className = 'message ' + (isError ? 'error' : 'success');
+        }
+
+        function validatePhone(num) {
+            const cleaned = num.replace(/\s/g, '');
+            return /^\+?[0-9]{10,15}$/.test(cleaned);
+        }
+
+        async function startVoiceAgent() {
+            const personaEl = document.querySelector('input[name="persona"]:checked');
+            const phoneEl = document.getElementById('phoneNumber');
+            const btn = document.getElementById('callBtn');
+
+            if (!personaEl) {
+                showMessage('Please select a persona.', true);
+                return;
+            }
+
+            const phoneNumber = phoneEl.value.trim();
+            if (!phoneNumber) {
+                showMessage('Please enter a phone number.', true);
+                return;
+            }
+            if (!validatePhone(phoneNumber)) {
+                showMessage('Invalid phone number. Use E.164 format (e.g. +1234567890).', true);
+                return;
+            }
+
+            btn.disabled = true;
+            showMessage('Initiating call...');
+
+            try {
+                const res = await fetch('/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        persona_id: personaEl.value,
+                        phone_number: phoneNumber
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || 'Call failed');
+                }
+                showMessage('Calling now. Answer your phone!');
+            } catch (err) {
+                showMessage(err.message || 'Failed to initiate call.', true);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        loadPersonas();
+    </script>
+</body>
+</html>

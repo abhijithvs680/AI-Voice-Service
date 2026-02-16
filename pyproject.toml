@@ -1,0 +1,13 @@
+[project]
+name = "py-pipecat"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pipecat-ai[websocket,silero,google,runner]>=0.0.101",
+    "fastapi",
+    "uvicorn[standard]",
+    "twilio",
+    "python-dotenv",
+]

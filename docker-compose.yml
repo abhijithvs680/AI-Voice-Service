@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8520:8520"
+    environment:
+      - PORT=8520
+      - ENV=production
+    env_file:
+      - .env
+    # Override DOMAIN, GEMINI_API_KEY, Twilio vars via .env
